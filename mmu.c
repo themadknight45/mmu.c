@@ -36,14 +36,15 @@ void os_init() {
 
     unsigned char* temp= OS_MEM;
     for(int i=0;i<1;i++){
-        printf("temp is %d\n",temp);
+        // printf("temp is %d\n",temp);
+        
         struct PCB sa = { .pid = i+1, .page_table = temp + sizeof(sa) };  
         // printf("pid is %d\n",sa.pid);  
         // printf("page_table ptr is %d\n",sa.page_table);
         memcpy( temp, &sa, sizeof(sa));
 
         struct PCB* sap = (struct PCB*) (temp);
-        
+
         // int a = sap->pid;
         // int b = sap->page_table;
         //  printf("pid is %d\n",a);  
