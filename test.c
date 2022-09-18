@@ -259,18 +259,29 @@ void exit_ps(int pid)
  */
 int fork_ps(int pid) {
     page_table_entry* page_table_start = OS_MEM+4112*(pid-1)+16;
-    int code_size=0;
-    int ro_data_size=0;
-    int rw_data_size=0;
-    int max_stack_size=0;
+
+    unsigned int* x=processes;
+    int newpid=1;
+    while(*x == 1){
+        x++;newpid++;
+    }
+    *x=1;
+
+    page_table_entry* new_ptb_start= OS_MEM+4112*(newpid-1)+16;
+
     for(int i=0;i<1024;i++){
         page_table_entry pte=*(page_table_start+i);
+        int protection_bits=((255)& pte);
+        *(new_ptb_start+i)=0;
         if(is_present(pte)){
             int phy_frame=find_phy_frame();
-            
+            page_table_entry new_pte=((phy_frame<<8)|protection_bits);
+            *(new_ptb_start+i)=new_pte;
+            memcpy(PS_MEM+phy_frame*PAGE_SIZE,PS_MEM+(pte>>8)*PAGE_SIZE,PAGE_SIZE);
         }
+        
     }
-    
+    return newpid;
 }
 
 
@@ -384,7 +395,6 @@ void write_mem(int pid, int vmem_addr, unsigned char byte)
             // printf("is writable = %d\n",is_writeable(pte));
             // printf("error encountered in writing\n");
             error_no=ERR_SEG_FAULT;
-            printf("free pages in write mem = %d\n",free_pages());
             exit_ps(pid);
             return;
     }
@@ -455,7 +465,7 @@ void print_page_table(int pid)
     {
         page_table_entry pte = page_table_start[i];
         // printf("pte is %d\n",pte);
-        printf("Pid: %d, Page num: %d, frame num: %d, R:%d, W:%d, X:%d, P:%d\n", pid,
+        printf(" Page num: %d, frame num: %d, R:%d, W:%d, X:%d, P:%d\n",
                 i, 
                 pte_to_frame_num(pte),
                 is_readable(pte),
@@ -478,111 +488,78 @@ int free_pages(){
 int main() {
 
 	os_init();
-    printf("free pages before p1 = %d\n",free_pages());
+    
 	code_ro_data[10 * PAGE_SIZE] = 'c';   // write 'c' at first byte in ro_mem
 	code_ro_data[10 * PAGE_SIZE + 1] = 'd'; // write 'd' at second byte in ro_mem
 
 	int p1 = create_ps(10 * PAGE_SIZE, 1 * PAGE_SIZE, 2 * PAGE_SIZE, 1 * MB, code_ro_data);
 
 	error_no = -1; // no error
-    // printf("free pages = %d\n",free_pages());
-    // print_page_table(1);
+
+
     
 	unsigned char c = read_mem(p1, 10 * PAGE_SIZE);
-    if(c=='c'){
-        printf("test1 passed\n");
-    }
+
 	assert(c == 'c');
 
 	unsigned char d = read_mem(p1, 10 * PAGE_SIZE + 1);
-    if(d=='d'){
-        printf("test2 passed\n");
-    }
 	assert(d == 'd');
-    
+
 	assert(error_no == -1); // no error
-    // printf("free pages before write mem = %d\n",free_pages());
-    // printf("trying to write\n");
+
+
 	write_mem(p1, 10 * PAGE_SIZE, 'd');   // write at ro_data
-    if(error_no==ERR_SEG_FAULT){
-        printf("test3 passed\n");
-    }
-    
+
 	assert(error_no == ERR_SEG_FAULT);  
-    // return 0;
-    // printf("free pages after write mem = %d\n",free_pages());
-    // return 0;
+
+
 	int p2 = create_ps(1 * MB, 0, 0, 1 * MB, code_ro_data);	// no ro_data, no rw_data
-    
+
 	error_no = -1; // no error
+
 
 	int HEAP_BEGIN = 1 * MB;  // beginning of heap
 
 	// allocate 250 pages
 	allocate_pages(p2, HEAP_BEGIN, 250, O_READ | O_WRITE);
-    // print_page_table(p2);return;
+
 	write_mem(p2, HEAP_BEGIN + 1, 'c');
+
 	write_mem(p2, HEAP_BEGIN + 2, 'd');
-    
-	
-    if(read_mem(p2,HEAP_BEGIN+1)=='c'){
-        printf("test4 passed\n");
-    }
-    else{
-        printf("test4 failed\n");return 0;
-    }
-    assert(read_mem(p2, HEAP_BEGIN + 1) == 'c');
+
+	assert(read_mem(p2, HEAP_BEGIN + 1) == 'c');
 
 	assert(read_mem(p2, HEAP_BEGIN + 2) == 'd');
-    if(read_mem(p2,HEAP_BEGIN+2)=='d'){
-        printf("test5 passed\n");
-    }
-    
 
 	deallocate_pages(p2, HEAP_BEGIN, 10);
 
-	// print_page_table(p2); // output should atleast indicate correct protection bits for the vmem of p2.
+	print_page_table(p2); // output should atleast indicate correct protection bits for the vmem of p2.
 
-    // return 0;
-
-    
 	write_mem(p2, HEAP_BEGIN + 1, 'd'); // we deallocated first 10 pages after heap_begin
-    if(error_no==ERR_SEG_FAULT){
-        printf("test6 passed\n");
-    }
-	assert(error_no == ERR_SEG_FAULT);
-    // return 0;
 
-    // int pid1=create_ps(1 * MB, 0, 0, 1 * MB, code_ro_data);
-    // print_page_table(pid1);
-    // return 0;
+	assert(error_no == ERR_SEG_FAULT);
+
 
 	int ps_pids[100];
-    // exit_ps(0);
-    // printf("free pages = %d\n",free_pages());
-    // exit_ps(1);exit_ps(2);
-    // printf("free pages = %d\n",free_pages());
-    // return 0;
 
-
-	// // requesting 2 MB memory for 64 processes, should fill the complete 128 MB without complaining.   
+	// requesting 2 MB memory for 64 processes, should fill the complete 128 MB without complaining.   
 	for (int i = 0; i < 64; i++) {
     	ps_pids[i] = create_ps(1 * MB, 0, 0, 1 * MB, code_ro_data);
     	print_page_table(ps_pids[i]);	// should print non overlapping mappings.  
 	}
 
-    // return 0;
 
 	exit_ps(ps_pids[0]);
+    
+
 	ps_pids[0] = create_ps(1 * MB, 0, 0, 500 * KB, code_ro_data);
 
 	print_page_table(ps_pids[0]);   
-    // return 0;
-	// // allocate 500 KB more
+
+	// allocate 500 KB more
 	allocate_pages(ps_pids[0], 1 * MB, 125, O_READ | O_READ | O_EX);
 
 	for (int i = 0; i < 64; i++) {
     	print_page_table(ps_pids[i]);	// should print non overlapping mappings.  
 	}
-    return 0;
 }
