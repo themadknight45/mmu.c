@@ -44,32 +44,17 @@ int error_no;
 void os_init() {
 
     unsigned char* temp= OS_MEM;
-    // printf("OS mem starts from %d\n",OS_MEM);
     for(int i=0;i<100;i++){
-        // printf("temp is %d\n",temp);
         struct PCB sa = { .pid = i+1, .page_table = temp + sizeof(sa) };  
-        // printf("size of sa is %d\n",sizeof(sa));
-        // printf("pid is %d\n",sa.pid);  
-        // printf("page_table ptr is %d\n",sa.page_table);
         memcpy( temp, &sa, sizeof(sa));
 
         struct PCB* sap = (struct PCB*) (temp);
-
-        // int a = sap->pid;
-        // int b = sap->page_table;
-        //  printf("pid is %d\n",a);  
-        //  printf("page_table ptr is %d\n",b);
-
         temp=temp+sizeof(sa)+1024*4;
-        // printf("size of sa is %d\n",sizeof(sa));
     }
     processes=temp;
-    // printf("processes starting at %d\n",processes);
     int* temp1=temp;
     for(int i=0;i<100;i++){
         *temp1=0;
-        // printf("temp pointer value is %d\n",temp1);
-        // printf("value at temp is %d\n",*temp1);
         temp1++;
     }
     pageframes=temp1;
@@ -77,7 +62,6 @@ void os_init() {
         *temp1=0;
         temp1++;
     }
-    // printf("%d\n",temp1-OS_MEM);
     
 }
 
@@ -124,7 +108,7 @@ void os_init() {
 
 int find_phy_frame(){
     // while(1){
-    //     // printf("curr pf is %d\n",cur_pf);
+    //     
     //     if(*(pageframes+cur_pf)==0){
     //         *(pageframes+cur_pf)=1;
     //         return cur_pf;
@@ -146,27 +130,22 @@ int create_ps(int code_size, int ro_data_size, int rw_data_size,
     int ro_frame=ceil(ro_data_size,4096);  
     int rw_frame=ceil(rw_data_size,4096);
     int stack_frame=ceil(max_stack_size,4096);
-    // printf("stack_frames assigned = %d\n",stack_frame);
     unsigned int* x=processes;
     int pid=1;
     while(*x == 1){
         x++;pid++;
     }
     *x=1;
-    // printf("pid assigned is %d\n",pid);
     unsigned int* pt_start =OS_MEM+4112*(pid-1)+16;
     unsigned int* st_start =OS_MEM+4112*pid-stack_frame*4;
     for(int i=0;i<code_frame;i++){
         int pte=0;
         int phy_frame=find_phy_frame();
-        // printf("phy_frame assigned for code Of pid %d is %d\n",pid,phy_frame);
         pte=phy_frame<<8;
-        // printf("pte after shifting is %d\n",pte);
         pte|=4;
         pte|=1;
         pte|=8;
-        // printf("pte final is %d\n",pte);
-        // printf("ptable pointer is at %d\n",pt_start);
+
             *pt_start=pte;
             pt_start++;
         if(i<code_frame-1){
@@ -180,14 +159,10 @@ int create_ps(int code_size, int ro_data_size, int rw_data_size,
             code_size=0;
         }
     }
-    // printf("ro_data is %s\n",code_and_ro_data);
     for(int i=0;i<ro_frame;i++){
         int pte=0;
         int phy_frame=find_phy_frame();
-        // printf("phy_frame assigned for ro_data Of pid %d is %d\n",pid,phy_frame);
-        // printf("phy_frame assigned for ro is %d\n",phy_frame);
         pte=phy_frame<<8;
-        // printf("pte after shifting is %d\n",pte);
         pte|=1;
         pte|=8;
         *pt_start=pte;
@@ -206,26 +181,19 @@ int create_ps(int code_size, int ro_data_size, int rw_data_size,
     for(int i=0;i<rw_frame;i++){
         int pte=0;
         int phy_frame=find_phy_frame();
-        // printf("phy_frame assigned for rw Of pid %d is %d\n",pid,phy_frame);
         pte=phy_frame<<8;
         pte|=1;pte|=2;pte|=8;
-        // printf("pte in rw is %d\n",pte);
         *pt_start=pte;
         pt_start++;
     }
     for(int i=0;i<stack_frame;i++){
         int pte=0;
         int phy_frame=find_phy_frame();
-        // printf("phy_frame assigned for stack Of pid %d is %d\n",pid,phy_frame);
         pte=phy_frame<<8;
         pte|=1;pte|=2;pte|=8;
-        // *pt_start=pte;
-        // pt_start++;
         *st_start=pte;
         st_start++;
-        // printf("pte in stack is %d\n",pte);
     }
-    // printf("pid is %d\n",pid);
     return pid;
     
 }
@@ -313,7 +281,6 @@ void allocate_pages(int pid, int vmem_addr, int num_pages, int flags)
     if(is_present(*(page_table_start+i))==1){
         error_no=ERR_SEG_FAULT;
         exit_ps(pid);
-        // printf("exiting process");
         return;
     }
     else{
@@ -361,14 +328,10 @@ unsigned char read_mem(int pid, int vmem_addr)
         int offset=vmem_addr%4096;
         page_table_start+=page_no;
         page_table_entry pte= *page_table_start;
-        // printf("vmem add is %d\n",vmem_addr);
         if(is_present(pte)==1){
-            // printf("is present true\n");
             int phy_frame= pte>>8;
-            // printf("phy_frame is %d\n",phy_frame);
 
             char*read=PS_MEM+PAGE_SIZE*phy_frame+offset;
-            // printf("char* is %s\n",read);
             return *read;
         }
         else{
@@ -391,9 +354,6 @@ void write_mem(int pid, int vmem_addr, unsigned char byte)
     int offset=vmem_addr%PAGE_SIZE;
     page_table_entry pte=*(page_table_start+page_no);
     if(is_present(pte)!=1||is_writeable(pte)!=1){
-            // printf("is present = %d\n",is_present(pte));
-            // printf("is writable = %d\n",is_writeable(pte));
-            // printf("error encountered in writing\n");
             error_no=ERR_SEG_FAULT;
             exit_ps(pid);
             return;
@@ -401,7 +361,6 @@ void write_mem(int pid, int vmem_addr, unsigned char byte)
     else{
         int phy_frame=pte>>8;
         *(PS_MEM+phy_frame*PAGE_SIZE+offset)=byte;
-        // printf("written %c at some physical mem\n",*(PS_MEM+phy_frame*PAGE_SIZE+offset));
     }
 }
 
@@ -421,8 +380,6 @@ int pte_to_frame_num(page_table_entry pte)
 // return 1 if read bit is set in the pte
 // 0 otherwise
 int is_readable(page_table_entry pte) {
-    // printf("in readable pte is %d\n",pte);
-    // printf("pte & 1= %d\n",pte &1);
     if ((pte & (1)) ==0) {return 0;}
     return 1;
 }
@@ -437,8 +394,6 @@ int is_writeable(page_table_entry pte) {
 // return 1 if executable bit is set in the pte
 // 0 otherwise
 int is_executable(page_table_entry pte) {
-    // printf("in executable pte is %d\n",pte);
-    // printf("pte & 4= %d\n",pte &4);
     if((pte & 4)==0) {return 0;}
     return 1;
 }
@@ -464,8 +419,7 @@ void print_page_table(int pid)
     for (int i = 0; i < num_page_table_entries; i++) 
     {
         page_table_entry pte = page_table_start[i];
-        // printf("pte is %d\n",pte);
-        printf(" Page num: %d, frame num: %d, R:%d, W:%d, X:%d, P:%d\n",
+        printf("Page num: %d, frame num: %d, R:%d, W:%d, X:%d, P%d\n", 
                 i, 
                 pte_to_frame_num(pte),
                 is_readable(pte),
@@ -475,14 +429,6 @@ void print_page_table(int pid)
                 );
     }
 
-}
-
-int free_pages(){
-    int count=0;
-    for(int i=0;i<32767;i++){
-        if(*(pageframes+i)==0)count++;
-    }
-    return count;
 }
 
 int main() {
@@ -596,3 +542,4 @@ int main() {
 	}
     return 0;
 }
+
