@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
+unsigned char* processes;
+unsigned char* pageframes;
+
 // byte addressable memory
 unsigned char RAM[RAM_SIZE];  
 
@@ -35,25 +38,38 @@ int error_no;
 void os_init() {
 
     unsigned char* temp= OS_MEM;
-    for(int i=0;i<1;i++){
-        printf("temp is %d\n",temp);
+    
+
+    for(int i=0;i<100;i++){
+        // printf("temp is %d\n",temp);
+
         struct PCB sa = { .pid = i+1, .page_table = temp + sizeof(sa) };  
         // printf("pid is %d\n",sa.pid);  
         // printf("page_table ptr is %d\n",sa.page_table);
         memcpy( temp, &sa, sizeof(sa));
 
         struct PCB* sap = (struct PCB*) (temp);
-        
+
         // int a = sap->pid;
         // int b = sap->page_table;
         //  printf("pid is %d\n",a);  
         //  printf("page_table ptr is %d\n",b);
 
-        temp=temp+sizeof(sa)+1024;
+        temp=temp+sizeof(sa)+1024*4;
         // printf("size of sa is %d\n",sizeof(sa));
-
-        
     }
+    processes=temp;
+    for(int i=0;i<100;i++){
+        temp[i]='0';
+        temp++;
+    }
+
+    pageframes=temp;
+    for(int i=0;i<32768;i++){
+        temp[i]='0';
+        temp++;
+    }
+    printf("%d\n",temp-OS_MEM);
     
 }
 
@@ -100,10 +116,23 @@ void os_init() {
 int create_ps(int code_size, int ro_data_size, int rw_data_size,
                  int max_stack_size, unsigned char* code_and_ro_data) 
 {   
-    // TODO student
+    int code_frame= ceil(code_size,4096); 
+    int ro_frame=ceil(ro_data_size,4096);  
+    int rw_frame=ceil(rw_data_size,4096);
+    int stack_frame=ceil(max_stack_size,4096);
+    unsigned char* x=processes;
+    int y=1;
+    while(*x == '1'){
+        x++;y++;
+    }
+
     return 0;
 }
-
+int ceil(int x,int y){
+    int ans=x/y;
+    if(x%y!=0)ans++;
+    return ans;
+}
 /**
  * This function should deallocate all the resources for this process. 
  * 
@@ -189,29 +218,28 @@ void write_mem(int pid, int vmem_addr, unsigned char byte)
 // return the frame number from the pte
 int pte_to_frame_num(page_table_entry pte) 
 {
-    // TODO: student
-    return 0;
+    return pte>>8;
 }
 
 
 // return 1 if read bit is set in the pte
 // 0 otherwise
 int is_readable(page_table_entry pte) {
-    // TODO: student
+    if (pte & (1) >0) return 1;
     return 0;
 }
 
 // return 1 if write bit is set in the pte
 // 0 otherwise
 int is_writeable(page_table_entry pte) {
-    // TODO: student
+    if(pte & 2 >0) return 1;
     return 0;
 }
 
 // return 1 if executable bit is set in the pte
 // 0 otherwise
 int is_executable(page_table_entry pte) {
-    // TODO: student
+    if(pte & 4>0) return 1;
     return 0;
 }
 
@@ -219,7 +247,7 @@ int is_executable(page_table_entry pte) {
 // return 1 if present bit is set in the pte
 // 0 otherwise
 int is_present(page_table_entry pte) {
-    // TODO: student
+    if(pte & 8 >0) return 1;
     return 0;
 }
 
@@ -227,7 +255,7 @@ int is_present(page_table_entry pte) {
 
 void print_page_table(int pid) 
 {
-    
+
     page_table_entry* page_table_start = NULL; // TODO student: start of page table of process pid
     int num_page_table_entries = -1;           // TODO student: num of page table entries
 
