@@ -123,7 +123,7 @@ int create_ps(int code_size, int ro_data_size, int rw_data_size,
     unsigned char* x=processes;
     int y=1;
     while(*x == '1'){
-        x++;y++;
+    x++;y++;
     }
 
     return 0;
